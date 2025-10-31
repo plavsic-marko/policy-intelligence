@@ -128,10 +128,10 @@ scripts/
   ├─ query_weaviate.py
   ├─ query_any.py
   ├─ debug_query.py
-  └─ weaviate_client.py   
+  └─ weaviate_client.py
 
 newsletter/
-  └─ make_newsletter.py   
+  └─ make_newsletter.py
 
 eval/
   ├─ test_queries.jsonl
@@ -199,8 +199,6 @@ pandoc newsletter_Q3_2025_*.md -o newsletter_Q3_2025.pdf
 
 ## 5) Napomene
 
-
-
 - Skripta koristi `.env` fajl za čitanje OpenAI API ključa (`OPENAI_API_KEY`).
 - Broj povučenih vesti (`k`) treba držati razumnim (10–20) da se izbegnu greške 422.
 - Newsletter je zamišljen kao kvartalni (Q1–Q4), ali query može biti prilagođen (tematski ili vremenski).
@@ -209,4 +207,3 @@ pandoc newsletter_Q3_2025_*.md -o newsletter_Q3_2025.pdf
 
 👉 TL;DR koraci:\
 `fetch_taxonomies → collect_updates_full → chunk_updates_v1 → create_schema_digwatch → ingest_hierarchy_digwatch → query_weaviate → make_newsletter`
-

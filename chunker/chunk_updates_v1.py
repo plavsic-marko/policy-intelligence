@@ -166,30 +166,42 @@ def main():
             effective_date = newer(modified, date) or date or modified or ""
             quarter = to_quarter(effective_date or date)
 
+            # 1️⃣ Snimi jedan update zapis sa metapodacima
+            update_rec = {
+                "source": "dig.watch",
+                "node_type": "update",
+                "title": title,
+                "url": url,
+                "date": date,
+                "modified": modified,
+                "effective_date": effective_date,
+                "quarter": quarter,
+                "category_names": cat_names,
+                "tag_names": tag_names,
+            }
+            f.write(json.dumps(update_rec, ensure_ascii=False) + "\n")
+            wrote += 1
+
+            # 2️⃣ Snimi paragraf zapise bez metapodataka
             for ch in extract_chunks_from_html(html_body):
                 text = ch.get("paragraph_text") or ""
                 if is_blacklisted(text) or words_count(text) < MIN_WORDS:
                     skipped_paras += 1
                     continue
 
-                rec = {
+                para_rec = {
                     "source": "dig.watch",
                     "node_type": "paragraph",
                     "title": title,
                     "url": url,
-                    "date": date,
-                    "modified": modified,
-                    "effective_date": effective_date,
-                    "quarter": quarter,
                     "section_title": ch.get("section_title"),
                     "subsection_title": ch.get("subsection_title"),
                     "text": text,
-                    "category_names": cat_names,
-                    "tag_names": tag_names,
                 }
-                f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+                f.write(json.dumps(para_rec, ensure_ascii=False) + "\n")
                 wrote += 1
-    print(f"V1.1 → {OUT} | zapisa: {wrote} | preskočeno: {skipped_paras}")
+
+    print(f"V1.2 → {OUT} | zapisa: {wrote} | preskočeno: {skipped_paras}")
 
 
 if __name__ == "__main__":
