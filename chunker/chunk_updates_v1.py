@@ -1,21 +1,33 @@
-from pathlib import Path
+import html
 import json
 import re
-import html
-from bs4 import BeautifulSoup
 from datetime import datetime
+from pathlib import Path
+
+from bs4 import BeautifulSoup
 
 RAW = Path(__file__).resolve().parents[1] / "data" / "raw" / "updates_all.json"
-TAX = Path(__file__).resolve().parents[1] / \
-    "data" / "raw" / "taxonomy_map.json"
-OUT = Path(__file__).resolve().parents[1] / \
-    "data" / "processed" / "updates_paragraphs.jsonl"
+TAX = Path(__file__).resolve().parents[1] / "data" / "raw" / "taxonomy_map.json"
+OUT = (
+    Path(__file__).resolve().parents[1]
+    / "data"
+    / "processed"
+    / "updates_paragraphs.jsonl"
+)
 OUT.parent.mkdir(parents=True, exist_ok=True)
 
 BLACKLIST_PHRASES = [
-    "share this", "subscribe", "newsletter", "leave a comment",
-    "next post", "previous post", "related posts", "read more",
-    "cookie", "privacy policy", "terms of use",
+    "share this",
+    "subscribe",
+    "newsletter",
+    "leave a comment",
+    "next post",
+    "previous post",
+    "related posts",
+    "read more",
+    "cookie",
+    "privacy policy",
+    "terms of use",
     "would you like to learn more about ai, tech and digital diplomacy",
     "ask our diplo chatbot",
 ]
@@ -85,33 +97,58 @@ def extract_chunks_from_html(html_in: str):
             text = clean_text(el.get_text(" ", strip=True))
             if text:
                 chunks.append(
-                    {"section_title": h2, "subsection_title": h3, "paragraph_text": text})
+                    {
+                        "section_title": h2,
+                        "subsection_title": h3,
+                        "paragraph_text": text,
+                    }
+                )
             continue
         if name == "blockquote":
             text = clean_text(el.get_text(" ", strip=True))
             if text:
                 chunks.append(
-                    {"section_title": h2, "subsection_title": h3, "paragraph_text": text})
+                    {
+                        "section_title": h2,
+                        "subsection_title": h3,
+                        "paragraph_text": text,
+                    }
+                )
             continue
         if name in ("ul", "ol"):
             text = clean_text(list_to_paragraph(el))
             if text:
                 chunks.append(
-                    {"section_title": h2, "subsection_title": h3, "paragraph_text": text})
+                    {
+                        "section_title": h2,
+                        "subsection_title": h3,
+                        "paragraph_text": text,
+                    }
+                )
             continue
         if name == "table":
             for ln in table_to_lines(el):
                 ln = clean_text(ln)
                 if ln:
                     chunks.append(
-                        {"section_title": h2, "subsection_title": h3, "paragraph_text": ln})
+                        {
+                            "section_title": h2,
+                            "subsection_title": h3,
+                            "paragraph_text": ln,
+                        }
+                    )
             continue
     if not chunks:
         for p in soup.find_all("p"):
             text = clean_text(p.get_text(" ", strip=True))
             if text:
                 chunks.append(
-                    {"section_title": None, "subsection_title": None, "paragraph_text": text})
+                    {
+                        "section_title": None,
+                        "subsection_title": None,
+                        "paragraph_text": text,
+                    }
+                )
     return chunks
 
 
@@ -126,11 +163,13 @@ def to_quarter(iso_dt: str) -> str | None:
 
 def newer(a: str | None, b: str | None) -> str | None:
     """Vrati noviji ISO string između a i b (ili prvo dostupno)."""
+
     def parse(x):
         try:
             return datetime.fromisoformat(x.replace("Z", "+00:00"))
         except Exception:
             return None
+
     da, db = parse(a) if a else None, parse(b) if b else None
     if da and db:
         return a if da >= db else b
@@ -158,15 +197,12 @@ def main():
 
             cat_ids = p.get("categories") or []
             tag_ids = p.get("tags") or []
-            cat_names = [cat_map.get(cid)
-                         for cid in cat_ids if cat_map.get(cid)]
-            tag_names = [tag_map.get(tid)
-                         for tid in tag_ids if tag_map.get(tid)]
+            cat_names = [cat_map.get(cid) for cid in cat_ids if cat_map.get(cid)]
+            tag_names = [tag_map.get(tid) for tid in tag_ids if tag_map.get(tid)]
 
             effective_date = newer(modified, date) or date or modified or ""
             quarter = to_quarter(effective_date or date)
 
-            # 1️⃣ Snimi jedan update zapis sa metapodacima
             update_rec = {
                 "source": "dig.watch",
                 "node_type": "update",
@@ -182,7 +218,6 @@ def main():
             f.write(json.dumps(update_rec, ensure_ascii=False) + "\n")
             wrote += 1
 
-            # 2️⃣ Snimi paragraf zapise bez metapodataka
             for ch in extract_chunks_from_html(html_body):
                 text = ch.get("paragraph_text") or ""
                 if is_blacklisted(text) or words_count(text) < MIN_WORDS:

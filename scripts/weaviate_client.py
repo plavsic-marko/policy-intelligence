@@ -1,30 +1,22 @@
-# weaviate_client.py
 import os
+
 import weaviate
 from dotenv import load_dotenv
 
 load_dotenv()
 
-weaviate_url = os.getenv("WEAVIATE_URL")
-api_key = os.getenv("WEAVIATE_API_KEY")
-openai_key = os.getenv("OPENAI_API_KEY")
+WEAVIATE_URL = os.getenv("WEAVIATE_URL")
+API_KEY = os.getenv("WEAVIATE_API_KEY")
 
-if not weaviate_url:
-    raise ValueError("WEAVIATE_URL nije definisan u .env fajlu")
 
-if api_key:
-    auth = weaviate.AuthApiKey(api_key=api_key)
-    WVT = weaviate.Client(
-        url=weaviate_url,
-        auth_client_secret=auth,
-        additional_headers={
-            "X-OpenAI-Api-Key": openai_key  # dodaj OpenAI ključ za text2vec-openai
-        }
-    )
-else:
-    WVT = weaviate.Client(
-        url=weaviate_url,
-        additional_headers={
-            "X-OpenAI-Api-Key": openai_key
-        }
-    )
+if not WEAVIATE_URL:
+    raise ValueError(" Nedostaje WEAVIATE_URL u .env fajlu")
+if not API_KEY:
+    raise ValueError(" Nedostaje WEAVIATE_API_KEY u .env fajlu")
+
+
+WVT = weaviate.Client(
+    url=WEAVIATE_URL,
+    auth_client_secret=weaviate.AuthApiKey(API_KEY),
+    additional_headers={"X-Weaviate-Cluster-Url": WEAVIATE_URL},
+)

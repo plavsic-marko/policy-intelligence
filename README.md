@@ -1,209 +1,151 @@
-# digwatch-pilot — README 
+# PolicyChunksUnified — Multi-Source Policy Intelligence Pipeline
 
-Minimalni vodič za pokretanje **RAG pipeline-a za dig.watch Updates** i generisanje **Swiss Digital Policy Newsletter-a** na lokalnoj mašini (Windows, VS Code/CMD).
+This repository implements a **stable, multi-source ingestion and retrieval pipeline**
+for policy-related content, unified into a single Weaviate collection:
 
----
+    PolicyChunksUnified
 
-## 0) Pregled
-
-### RAG pipeline
-
-1. **Crawler (taxonomy + updates)** → preuzmi kategorije/tagove i sve `updates` zapise sa dig.watch.
-2. **Chunker** → očisti HTML i podeli na pasuse (dodaje meta: `quarter`, `effective_date`, `tags`, `categories`).
-3. **Schema** → kreiraj klase u Weaviate (`DigwatchUpdate`, `DigwatchParagraph`).
-4. **Ingest** → upiši dokumente i pasuse u Weaviate sa relacijama (`updateRef`).
-5. **Query** → sanity check (BM25 ili hibrid).
-6. **Eval (opciono)** → lokalno testiranje na JSONL upitima.
-
-### Newsletter pipeline
-
-1. **Fetch iz baze** → koristeći lokalni API endpoint `/retrieve_digwatch` koji vraća rezultate iz Weaviate baze.
-2. \*\*Python skripta \*\***`make_newsletter.py`** → nalazi se u folderu `newsletter/`. Skripta povlači ažuriranja, normalizuje podatke i priprema ih za LLM.
-3. **LLM generacija** → koristi se OpenAI model (npr. `gpt-4o`) za formiranje newslettera u JSON strukturi.
-4. **Izlaz** → čuvanje u JSON i Markdown formatima. Markdown se može lako konvertovati u Word ili PDF.
-
-Struktura izlaza newslettera:
-
-- Naslov
-- Uvod
-- EU sekcija
-- Global sekcija
-- Zaključak
-
-Format je preuzet prema zahtevima koje je definisala Sorina.
+The system is designed for **hybrid search (BM25 + vector embeddings)** and serves as
+a backend foundation for policy analysis, RAG systems, n8n workflows, and frontend UIs.
 
 ---
 
-## 1) Prerekviziti
+##  Core Concept
 
-- Python 3.10+
-- Virtuelno okruženje (`venv/`)
-- Docker sa Weaviate + `text2vec-transformers` modelom (npr. `all-MiniLM-L6-v2`)
+Instead of maintaining separate databases per source, all sources are:
 
-Pokreni Weaviate:
+- crawled
+- normalized
+- chunked at paragraph level
+- ingested
 
-```bash
-docker run -d --name weaviate \
-  -p 8080:8080 -e QUERY_DEFAULTS_LIMIT=20 \
-  -e AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED=true \
-  -e PERSISTENCE_DATA_PATH="/var/lib/weaviate" \
-  semitechnologies/weaviate:1.25.8
-```
+into **one unified collection** with a consistent schema and metadata.
 
----
-
-## 2) Brzi start — komande (redom)
-
-### (a) Fetch taxonomy
-
-```bash
-python crawler/fetch_taxonomies.py
-```
-
-Output: `data/raw/taxonomy_map.json`
-
-### (b) Collect updates (full crawl)
-
-```bash
-python crawler/collect_updates_full.py
-```
-
-Output: `data/raw/updates_all.json`, `data/raw/updates_state.json`
-
-### (c) Chunk updates
-
-```bash
-python chunker/chunk_updates_v1.py
-```
-
-Output: `data/processed/updates_paragraphs.jsonl`
-
-### (d) Create schema (Weaviate)
-
-```bash
-python scripts/create_schema_digwatch.py
-```
-
-Kreira klase `DigwatchUpdate` i `DigwatchParagraph`.
-
-### (e) Ingest hierarchy
-
-```bash
-python scripts/ingest_hierarchy_digwatch.py
-```
-
-Output primer:
-
-```
-Ingest done. Paragraphs: 75501, Updates: 24091
-```
-
-### (f) Query sanity check
-
-```bash
-python scripts/query_weaviate.py "AI Act" --alpha 0.35 --k 5
-```
-
-### (g) (Opcionalno) Lokalni offline check
-
-```bash
-python search_jsonl.py "AI Act"
-```
+This enables:
+- cross-source semantic search
+- relevance comparison across origins
+- time-based and thematic filtering
+- stable RAG context generation
 
 ---
 
-## 3) Struktura projekta
+##  Supported Sources
 
-```
-crawler/
-  ├─ fetch_taxonomies.py
-  └─ collect_updates_full.py
+Currently integrated sources include:
 
-chunker/
-  └─ chunk_updates_v1.py
+- **DigWatch**
+- **IETF**
+- **EU Digital Strategy**
+- **ITU**
+- **UN (ODET / policy-related content)**
 
-scripts/
-  ├─ create_schema_digwatch.py
-  ├─ ingest_hierarchy_digwatch.py
-  ├─ query_weaviate.py
-  ├─ query_any.py
-  ├─ debug_query.py
-  └─ weaviate_client.py
+All sources are ingested into the same Weaviate class:
 
-newsletter/
-  └─ make_newsletter.py
-
-eval/
-  ├─ test_queries.jsonl
-  └─ evaluate_local.py
-
-data/
-  ├─ raw/
-  │   ├─ taxonomy_map.json
-  │   ├─ updates_all.json
-  │   └─ updates_state.json
-  └─ processed/
-      └─ updates_paragraphs.jsonl
-
-api.py              # FastAPI servis (/healthz, /retrieve_digwatch)
-requirements.txt    # Python zavisnosti
-README.md           # ovaj fajl
-```
+    PolicyChunksUnified
 
 ---
 
-## 4) Newsletter korišćenje
+##  High-Level Architecture
 
-### (a) Podesi parametre
-
-U `newsletter/make_newsletter.py` na vrhu:
-
-```python
-PARAMS = {
-    "q": "*",   # ili npr. "AI Act" za fokusiranu temu
-    "k": 20,
-    "alpha": 0.35
-}
-```
-
-### (b) Pokreni
-
-Iz root-a projekta:
-
-```bash
-python newsletter/make_newsletter.py
-```
-
-Iz foldera `newsletter/`:
-
-```bash
-python make_newsletter.py
-```
-
-### (c) Output
-
-```
-[DONE] Saved:
-  JSON: newsletter_Q3_2025_20251022_2226.json
-  MD:   newsletter_Q3_2025_20251022_2226.md
-```
-
-### (d) Konverzija
-
-```bash
-pandoc newsletter_Q3_2025_*.md -o newsletter_Q3_2025.docx
-pandoc newsletter_Q3_2025_*.md -o newsletter_Q3_2025.pdf
-```
+    [ Crawlers / Raw data ]
+              ↓
+    [ Normalization & cleaning ]
+              ↓
+    [ Paragraph-level chunking ]
+              ↓
+    [ Source-specific ingest pipelines ]
+              ↓
+    [ PolicyChunksUnified (Weaviate) ]
+              ↓
+    [ Hybrid search / RAG / UI / n8n ]
 
 ---
 
-## 5) Napomene
+##  Repository Structure (relevant parts)
 
-- Skripta koristi `.env` fajl za čitanje OpenAI API ključa (`OPENAI_API_KEY`).
-- Broj povučenih vesti (`k`) treba držati razumnim (10–20) da se izbegnu greške 422.
-- Newsletter je zamišljen kao kvartalni (Q1–Q4), ali query može biti prilagođen (tematski ili vremenski).
+    project-root/
+    │
+    ├── scripts/
+    │   ├── digwatch/                # DigWatch normalization & preparation
+    │   ├── eu_digital_strategy/     # EU Digital Strategy prep & helpers
+    │   ├── ietf/                    # IETF prep & helpers
+    │   ├── itu/                     # ITU prep & helpers
+    │   ├── un/                      # UN prep & helpers
+    │   │
+    │   ├── ingest_digwatch_unified.py
+    │   ├── ingest_ietf_unified.py
+    │   ├── ingest_eu_digital.py
+    │   ├── ingest_itu_unified.py
+    │   ├── ingest_un_unified.py
+    │   │
+    │   ├── weaviate_client.py
+    │   └── delete_ietf_from_weaviate.py
+    │
+    ├── data/
+    │   ├── raw/                     # crawler outputs
+    │   └── processed/               # cleaned / chunked JSONL files
+    │
+    ├── policy-frontend/             # frontend UI (separate README)
+    │
+    ├── .env.example
+    └── README.md
 
 ---
 
-👉 TL;DR koraci:\
-`fetch_taxonomies → collect_updates_full → chunk_updates_v1 → create_schema_digwatch → ingest_hierarchy_digwatch → query_weaviate → make_newsletter`
+##  Ingestion Pipeline
+
+Each source has its own dedicated ingestion script.
+
+Examples:
+
+    python scripts/ingest_digwatch_unified.py
+    python scripts/ingest_ietf_unified.py
+    python scripts/ingest_eu_digital.py
+    python scripts/ingest_itu_unified.py
+    python scripts/ingest_un_unified.py
+
+All ingestion scripts:
+- write exclusively to `PolicyChunksUnified`
+- use stable UUIDs
+- do not delete existing data
+
+---
+
+##  Testing / Sanity Checks
+
+A minimal smoke test to verify the system:
+
+    python scripts/test_hybrid_unified.py
+
+This confirms:
+- the collection exists
+- hybrid search returns results
+- metadata fields (`origin_site`, `date`, `quarter`) are populated
+
+---
+
+##  Weaviate Configuration
+
+Create a `.env` file in the project root:
+
+    WEAVIATE_URL=https://<cluster>.weaviate.network
+    WEAVIATE_API_KEY=<api_key>
+
+The project uses **Weaviate Cloud** with the `text2vec-weaviate`
+(Snowflake Arctic Embed) embedding model.
+
+---
+
+##  Frontend
+
+The frontend application lives in:
+
+    policy-frontend/
+
+It has its own `README.md` with setup and usage instructions.
+
+---
+
+## 👤 Author
+
+Marko Plavšić
