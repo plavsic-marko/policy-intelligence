@@ -13,11 +13,13 @@ const ChatInput = ({ input, setInput, loading, onSend }: ChatInputProps) => {
         onChange={(e) => setInput(e.target.value)}
         onKeyDown={(e) => e.key === "Enter" && onSend()}
         placeholder="Ask about global digital policy, e.g. 'AI regulation in Q3 2025'"
+        disabled={loading}
         className="
           flex-1 px-4 py-3 
           rounded-lg border border-slate-700 
           bg-slate-900 text-slate-200 text-[15px]
           outline-none transition focus:border-slate-500
+          disabled:opacity-60 disabled:cursor-not-allowed
         "
       />
 
@@ -32,7 +34,7 @@ const ChatInput = ({ input, setInput, loading, onSend }: ChatInputProps) => {
           text-white transition
         `}
       >
-        {loading ? "Searching…" : "Search"}
+        {loading ? "Running…" : "Run query"}
       </button>
     </div>
   );

@@ -8,6 +8,7 @@ import SourceList from "../components/SourceList";
 
 const PolicyChat = () => {
   const [input, setInput] = useState("");
+  const [lastQuestion, setLastQuestion] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const { runQuery, analysis, sources, loading, error } = usePolicyStore();
@@ -18,6 +19,8 @@ const PolicyChat = () => {
 
   const handleSend = () => {
     if (!input.trim()) return;
+
+    setLastQuestion(input.trim());
     runQuery({ question: input });
     setInput("");
   };
@@ -25,12 +28,10 @@ const PolicyChat = () => {
   return (
     <div className="max-w-[900px] mx-auto py-8 px-6 text-slate-100">
 
-      
       <h1 className="text-3xl font-semibold mb-6">
-        Policy Intelligence Chat
+        Policy Chat
       </h1>
 
-    
       <ChatInput
         input={input}
         setInput={setInput}
@@ -38,13 +39,31 @@ const PolicyChat = () => {
         onSend={handleSend}
       />
 
-      
       <ErrorBanner message={error} />
 
       
-      <AnalysisCard analysis={analysis} />
+      {lastQuestion && (
+        <>
+          <div className="mb-2 text-slate-400 text-sm">
+            <span className="text-slate-300 font-medium">Query:</span>{" "}
+            {lastQuestion}
+          </div>
+          <hr className="border-slate-700 mb-4" />
+        </>
+      )}
 
       
+      {loading && !analysis && (
+        <div className="bg-slate-800 border border-slate-700 p-6 rounded-xl mb-6">
+          <div className="text-slate-400 text-sm animate-pulse">
+            AI is thinking…
+          </div>
+        </div>
+      )}
+
+      {/* Policy analysis (fake streaming u AnalysisCard) */}
+      <AnalysisCard analysis={analysis} />
+
       <SourceList sources={sources} />
 
       <div ref={messagesEndRef} />

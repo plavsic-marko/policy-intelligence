@@ -1,4 +1,4 @@
-# venv / Python
+
 .venv/
 venv/
 __pycache__/
@@ -6,23 +6,23 @@ __pycache__/
 *.pyo
 *.pyd
 
-# env i lokalni state
+
 .env
 updates_state.json
 
-# editor/OS
+
 .vscode/
 .idea/
 .DS_Store
 Thumbs.db
 
-# data dumpovi
+
 data/
 output/
 logs/
 *.log
 
-# Docker / ngrok
+
 *.pid
 .ngrok2/
 ngrok.yml
@@ -31,7 +31,7 @@ weaviate-data/
 weaviate/
 vector-index/
 
-# --- Python / venv / cache ---
+
 venv/
 __pycache__/
 *.pyc
@@ -42,27 +42,29 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 
-# --- OS / editor ---
+
 .DS_Store
 Thumbs.db
 desktop.ini
 .vscode/
 .idea/
 
-# --- Env / secrets ---
+
 .env
 .env.*
 *.env
 
-# --- Weaviate local data (docker volume na disk) ---
+
 weaviate_data/
 weaviate_data/**
 
-# --- Generated outputs / logs ---
+
 *.log
 *.sqlite
 *.db
 
-# Newsletter generisani fajlovi (zadrži skriptu, ignoriši artefakte)
 newsletter/newsletter_*.md
 newsletter/newsletter_*.json
+
+
+!policy-frontend/.env.example

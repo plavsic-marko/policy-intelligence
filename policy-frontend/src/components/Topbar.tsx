@@ -6,8 +6,13 @@ const Topbar = () => {
         Policy Intelligence Assistant
       </div>
 
-      <div className="text-slate-400 text-sm">
-        Swiss Canton Edition
+      <div className="flex items-center gap-2 text-slate-400 text-sm">
+        <img
+          src="/flags/switzerland.png"
+          alt="Swiss flag"
+          className="w-4 h-4"
+        />
+        <span>Swiss Canton Edition</span>
       </div>
 
     </div>
