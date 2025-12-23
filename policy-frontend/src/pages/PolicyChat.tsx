@@ -20,7 +20,7 @@ const PolicyChat = () => {
     resetSession,
   } = usePolicyStore();
 
-  // ✅ RESET samo ako NEMA već učitanog odgovora (npr. iz History-ja)
+ 
   useEffect(() => {
     if (!analysis) {
       resetSession();
@@ -54,7 +54,7 @@ const PolicyChat = () => {
 
       <ErrorBanner message={error} />
 
-      {/* Poslednji upit (samo za live query, ne za history restore) */}
+      
       {lastQuestion && !analysis && (
         <>
           <div className="mb-2 text-slate-400 text-sm">
@@ -65,7 +65,7 @@ const PolicyChat = () => {
         </>
       )}
 
-      {/* Placeholder dok backend radi */}
+     
       {loading && !analysis && (
         <div className="bg-slate-800 border border-slate-700 p-6 rounded-xl mb-6">
           <div className="text-slate-400 text-sm animate-pulse">
@@ -74,7 +74,7 @@ const PolicyChat = () => {
         </div>
       )}
 
-      {/* Policy analysis (live ili history snapshot) */}
+      
       <AnalysisCard analysis={analysis} />
 
       <SourceList sources={sources} />

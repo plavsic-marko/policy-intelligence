@@ -66,7 +66,7 @@ const saveHistory = (history: HistoryEntry[]) => {
   try {
     localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
   } catch {
-    /* ignore */
+    
   }
 };
 
@@ -90,11 +90,11 @@ const storeCreator: StateCreator<PolicyState> = (set, get) => ({
     try {
       localStorage.removeItem(HISTORY_KEY);
     } catch {
-      /* ignore */
+      
     }
   },
 
-  /** 👇 OVO JE KLJUČ ZA KLIK IZ HISTORY-JA */
+  
   loadFromHistory: (entry: HistoryEntry) => {
     set({
       query: entry.question,
@@ -139,14 +139,14 @@ const storeCreator: StateCreator<PolicyState> = (set, get) => ({
       const analysis = data.analysis || null;
       const sources: PolicySource[] = data.sources || [];
 
-      // UI update
+      
       set({
         analysis,
         sources,
         loading: false,
       });
 
-      // Snapshot history
+      
       const snapshot: HistoryEntry = {
         id: crypto.randomUUID(),
         timestamp: new Date().toISOString(),

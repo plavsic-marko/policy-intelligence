@@ -9,11 +9,10 @@ const History = () => {
     history,
     clearHistory,
     loadFromHistory,
-    resetSession,   // 👈 BITNO
+    resetSession,   
   } = usePolicyStore();
 
-  // ✅ Kada uđeš u History, očisti chat session
-  // (da se ne replay-uje stari analysis kad se vratiš nazad)
+  
   useEffect(() => {
     resetSession();
   }, [resetSession]);
@@ -33,8 +32,8 @@ const History = () => {
           <li
             key={h.id}
             onClick={() => {
-              loadFromHistory(h); // 👈 restore snapshot
-              navigate("/");      // 👈 nazad na Policy Chat
+              loadFromHistory(h); 
+              navigate("/");     
             }}
             className="
               bg-slate-800 border border-slate-700 
