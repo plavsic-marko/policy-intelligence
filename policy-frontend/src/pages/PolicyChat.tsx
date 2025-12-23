@@ -11,7 +11,19 @@ const PolicyChat = () => {
   const [lastQuestion, setLastQuestion] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const { runQuery, analysis, sources, loading, error } = usePolicyStore();
+  const {
+    runQuery,
+    analysis,
+    sources,
+    loading,
+    error,
+    resetSession,   // 👈 SADA POSTOJI
+  } = usePolicyStore();
+
+  // 🔹 reset samo UI session-a (NE history)
+  useEffect(() => {
+    resetSession();
+  }, [resetSession]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -21,7 +33,7 @@ const PolicyChat = () => {
     if (!input.trim()) return;
 
     setLastQuestion(input.trim());
-    runQuery({ question: input });
+    runQuery({ question: input.trim() });
     setInput("");
   };
 
@@ -41,7 +53,7 @@ const PolicyChat = () => {
 
       <ErrorBanner message={error} />
 
-      
+      {/* Poslednji upit */}
       {lastQuestion && (
         <>
           <div className="mb-2 text-slate-400 text-sm">
@@ -52,7 +64,7 @@ const PolicyChat = () => {
         </>
       )}
 
-      
+      {/* Placeholder dok backend radi */}
       {loading && !analysis && (
         <div className="bg-slate-800 border border-slate-700 p-6 rounded-xl mb-6">
           <div className="text-slate-400 text-sm animate-pulse">
@@ -61,7 +73,7 @@ const PolicyChat = () => {
         </div>
       )}
 
-      {/* Policy analysis (fake streaming u AnalysisCard) */}
+      {/* Policy analysis */}
       <AnalysisCard analysis={analysis} />
 
       <SourceList sources={sources} />

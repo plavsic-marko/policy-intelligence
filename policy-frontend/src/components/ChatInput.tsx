@@ -12,7 +12,7 @@ const ChatInput = ({ input, setInput, loading, onSend }: ChatInputProps) => {
         value={input}
         onChange={(e) => setInput(e.target.value)}
         onKeyDown={(e) => e.key === "Enter" && onSend()}
-        placeholder="Ask about global digital policy, e.g. 'AI regulation in Q3 2025'"
+        placeholder="Ask about the impact of digitalisation"
         disabled={loading}
         className="
           flex-1 px-4 py-3 

@@ -1,7 +1,5 @@
 import { create, StateCreator } from "zustand";
 
-
-
 interface PolicySource {
   id?: string;
   title?: string;
@@ -27,23 +25,19 @@ interface PolicyState {
   loading: boolean;
   error: string | null;
 
-  history: string[];                     
-  addHistory: (prompt: string) => void;  
-  clearHistory: () => void;              
+  history: string[];
+  addHistory: (prompt: string) => void;
+  clearHistory: () => void;
 
   runQuery: (payload: RunQueryPayload) => Promise<void>;
-  reset: () => void;
+  resetSession: () => void;   // 👈 SAMO OVO
 }
-
-
 
 const N8N_WEBHOOK_URL =
   process.env.REACT_APP_N8N_WORKFLOW_URL ||
   "https://diplo.app.n8n.cloud/webhook/2cc87e08-36db-468f-94da-c7aecc3938ea";
 
-console.log(" N8N WEBHOOK URL =", N8N_WEBHOOK_URL);
-
-
+console.log("N8N WEBHOOK URL =", N8N_WEBHOOK_URL);
 
 const storeCreator: StateCreator<PolicyState> = (set) => ({
   query: "",
@@ -52,31 +46,26 @@ const storeCreator: StateCreator<PolicyState> = (set) => ({
   loading: false,
   error: null,
 
-  
   history: [],
 
   addHistory: (prompt: string) =>
     set((state) => ({
-      history: [prompt, ...state.history].slice(0, 10), 
+      history: [prompt, ...state.history].slice(0, 10),
     })),
 
   clearHistory: () => set({ history: [] }),
 
-  
   runQuery: async (payload: RunQueryPayload) => {
-    console.log(" Sending payload to n8n:", payload);
+    console.log("Sending payload to n8n:", payload);
 
-  
     set({ loading: true, error: null, query: payload.question });
 
-    
     set((state) => ({
       history: [payload.question, ...state.history].slice(0, 10),
     }));
 
-    
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
+    const timeout = setTimeout(() => controller.abort(), 45000);
 
     try {
       const response = await fetch(N8N_WEBHOOK_URL, {
@@ -87,29 +76,21 @@ const storeCreator: StateCreator<PolicyState> = (set) => ({
       });
 
       clearTimeout(timeout);
-      console.log("📡 HTTP Status:", response.status);
 
-      
       if (!response.ok) {
-        let message = "Neuspješan upit.";
+        let message = "Neuspešan upit.";
 
         if (response.status === 400) message = "Neispravan upit (400).";
-        if (response.status === 404) message = "Nema rezultata za ovaj upit (404).";
-        if (response.status === 500) message = "Greška na serveru (500). N8N workflow se srušio.";
-        if (response.status === 503) message = "Server privremeno nedostupan (503).";
+        if (response.status === 404) message = "Nema rezultata (404).";
+        if (response.status === 500)
+          message = "Greška na serveru (500).";
+        if (response.status === 503)
+          message = "Server privremeno nedostupan (503).";
 
         throw new Error(message);
       }
 
-      
-      let data;
-      try {
-        data = await response.json();
-      } catch {
-        throw new Error("Neočekivan format odgovora (nije JSON).");
-      }
-
-      console.log(" n8n RESPONSE:", data);
+      const data = await response.json();
 
       set({
         analysis: data.analysis || null,
@@ -118,53 +99,29 @@ const storeCreator: StateCreator<PolicyState> = (set) => ({
       });
     } catch (err: any) {
       clearTimeout(timeout);
-      console.error(" Policy query error:", err);
 
-      
       if (err.name === "AbortError") {
         return set({
-          error: "Server predugo odgovara (timeout). Pokušajte ponovo.",
+          error: "Server predugo odgovara (timeout).",
           loading: false,
         });
       }
 
-      
-      if (
-        err.message.includes("Failed to fetch") ||
-        err.message.includes("NetworkError") ||
-        err.message.includes("ECONNREFUSED")
-      ) {
-        return set({
-          error: "Server nije dostupan. Provjerite internet vezu.",
-          loading: false,
-        });
-      }
-
-      
-      if (err.message) {
-        return set({
-          error: err.message,
-          loading: false,
-        });
-      }
-
-     
-      set({
-        error: "Došlo je do neočekivane greške.",
+      return set({
+        error: err.message || "Neočekivana greška.",
         loading: false,
       });
     }
   },
 
-  
-  reset: () => {
+  // 🔹 RESET SAMO SESSION STATE-a (NE HISTORY)
+  resetSession: () => {
     set({
       query: "",
       analysis: null,
       sources: [],
       loading: false,
       error: null,
-      history: [],
     });
   },
 });

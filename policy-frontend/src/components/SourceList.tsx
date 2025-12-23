@@ -33,7 +33,7 @@ const SourceList = ({ sources }: SourceListProps) => {
               rel="noopener noreferrer"
               className="text-blue-400 text-sm hover:underline"
             >
-              Open source →
+              Source →
             </a>
           </li>
         ))}
