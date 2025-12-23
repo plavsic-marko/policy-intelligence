@@ -18,6 +18,15 @@ interface RunQueryPayload {
   quarter?: string;
 }
 
+/** Snapshot history entry */
+export interface HistoryEntry {
+  id: string;
+  timestamp: string;
+  question: string;
+  analysis: string | null;
+  sources: PolicySource[];
+}
+
 interface PolicyState {
   query: string;
   analysis: string | null;
@@ -25,44 +34,83 @@ interface PolicyState {
   loading: boolean;
   error: string | null;
 
-  history: string[];
-  addHistory: (prompt: string) => void;
+  history: HistoryEntry[];
+  addSnapshot: (entry: HistoryEntry) => void;
   clearHistory: () => void;
 
+  loadFromHistory: (entry: HistoryEntry) => void;
+
   runQuery: (payload: RunQueryPayload) => Promise<void>;
-  resetSession: () => void;   // 👈 SAMO OVO
+  resetSession: () => void;
 }
 
 const N8N_WEBHOOK_URL =
   process.env.REACT_APP_N8N_WORKFLOW_URL ||
   "https://diplo.app.n8n.cloud/webhook/2cc87e08-36db-468f-94da-c7aecc3938ea";
 
-console.log("N8N WEBHOOK URL =", N8N_WEBHOOK_URL);
+const HISTORY_KEY = "policy_history_v1";
+const HISTORY_LIMIT = 10;
 
-const storeCreator: StateCreator<PolicyState> = (set) => ({
+const loadHistory = (): HistoryEntry[] => {
+  try {
+    const raw = localStorage.getItem(HISTORY_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+const saveHistory = (history: HistoryEntry[]) => {
+  try {
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+  } catch {
+    /* ignore */
+  }
+};
+
+const storeCreator: StateCreator<PolicyState> = (set, get) => ({
   query: "",
   analysis: null,
   sources: [],
   loading: false,
   error: null,
 
-  history: [],
+  history: loadHistory(),
 
-  addHistory: (prompt: string) =>
-    set((state) => ({
-      history: [prompt, ...state.history].slice(0, 10),
-    })),
+  addSnapshot: (entry: HistoryEntry) => {
+    const next = [entry, ...get().history].slice(0, HISTORY_LIMIT);
+    set({ history: next });
+    saveHistory(next);
+  },
 
-  clearHistory: () => set({ history: [] }),
+  clearHistory: () => {
+    set({ history: [] });
+    try {
+      localStorage.removeItem(HISTORY_KEY);
+    } catch {
+      /* ignore */
+    }
+  },
+
+  /** 👇 OVO JE KLJUČ ZA KLIK IZ HISTORY-JA */
+  loadFromHistory: (entry: HistoryEntry) => {
+    set({
+      query: entry.question,
+      analysis: entry.analysis,
+      sources: entry.sources,
+      loading: false,
+      error: null,
+    });
+  },
 
   runQuery: async (payload: RunQueryPayload) => {
-    console.log("Sending payload to n8n:", payload);
-
-    set({ loading: true, error: null, query: payload.question });
-
-    set((state) => ({
-      history: [payload.question, ...state.history].slice(0, 10),
-    }));
+    set({
+      loading: true,
+      error: null,
+      query: payload.question,
+    });
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 45000);
@@ -79,28 +127,39 @@ const storeCreator: StateCreator<PolicyState> = (set) => ({
 
       if (!response.ok) {
         let message = "Neuspešan upit.";
-
         if (response.status === 400) message = "Neispravan upit (400).";
         if (response.status === 404) message = "Nema rezultata (404).";
-        if (response.status === 500)
-          message = "Greška na serveru (500).";
-        if (response.status === 503)
-          message = "Server privremeno nedostupan (503).";
-
+        if (response.status === 500) message = "Greška na serveru (500).";
+        if (response.status === 503) message = "Server privremeno nedostupan (503).";
         throw new Error(message);
       }
 
       const data = await response.json();
 
+      const analysis = data.analysis || null;
+      const sources: PolicySource[] = data.sources || [];
+
+      // UI update
       set({
-        analysis: data.analysis || null,
-        sources: data.sources || [],
+        analysis,
+        sources,
         loading: false,
       });
+
+      // Snapshot history
+      const snapshot: HistoryEntry = {
+        id: crypto.randomUUID(),
+        timestamp: new Date().toISOString(),
+        question: payload.question,
+        analysis,
+        sources,
+      };
+
+      get().addSnapshot(snapshot);
     } catch (err: any) {
       clearTimeout(timeout);
 
-      if (err.name === "AbortError") {
+      if (err?.name === "AbortError") {
         return set({
           error: "Server predugo odgovara (timeout).",
           loading: false,
@@ -108,13 +167,12 @@ const storeCreator: StateCreator<PolicyState> = (set) => ({
       }
 
       return set({
-        error: err.message || "Neočekivana greška.",
+        error: err?.message || "Neočekivana greška.",
         loading: false,
       });
     }
   },
 
-  // 🔹 RESET SAMO SESSION STATE-a (NE HISTORY)
   resetSession: () => {
     set({
       query: "",

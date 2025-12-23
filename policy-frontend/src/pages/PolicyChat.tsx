@@ -17,13 +17,15 @@ const PolicyChat = () => {
     sources,
     loading,
     error,
-    resetSession,   // 👈 SADA POSTOJI
+    resetSession,
   } = usePolicyStore();
 
-  // 🔹 reset samo UI session-a (NE history)
+  // ✅ RESET samo ako NEMA već učitanog odgovora (npr. iz History-ja)
   useEffect(() => {
-    resetSession();
-  }, [resetSession]);
+    if (!analysis) {
+      resetSession();
+    }
+  }, [analysis, resetSession]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -39,7 +41,6 @@ const PolicyChat = () => {
 
   return (
     <div className="max-w-[900px] mx-auto py-8 px-6 text-slate-100">
-
       <h1 className="text-3xl font-semibold mb-6">
         Policy Chat
       </h1>
@@ -53,8 +54,8 @@ const PolicyChat = () => {
 
       <ErrorBanner message={error} />
 
-      {/* Poslednji upit */}
-      {lastQuestion && (
+      {/* Poslednji upit (samo za live query, ne za history restore) */}
+      {lastQuestion && !analysis && (
         <>
           <div className="mb-2 text-slate-400 text-sm">
             <span className="text-slate-300 font-medium">Query:</span>{" "}
@@ -73,7 +74,7 @@ const PolicyChat = () => {
         </div>
       )}
 
-      {/* Policy analysis */}
+      {/* Policy analysis (live ili history snapshot) */}
       <AnalysisCard analysis={analysis} />
 
       <SourceList sources={sources} />
