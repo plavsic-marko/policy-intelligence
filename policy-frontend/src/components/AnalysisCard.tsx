@@ -1,5 +1,3 @@
-import { useEffect, useState } from "react";
-
 interface AnalysisCardProps {
   analysis: string | null;
 }
@@ -11,34 +9,10 @@ const capitalizeFirst = (text: string) =>
   text.charAt(0).toUpperCase() + text.slice(1);
 
 const AnalysisCard = ({ analysis }: AnalysisCardProps) => {
-  const [displayedText, setDisplayedText] = useState("");
-  const [isTyping, setIsTyping] = useState(false);
-
-  useEffect(() => {
-    if (!analysis) return;
-
-    setDisplayedText("");
-    setIsTyping(true);
-    let index = 0;
-
-    const interval = setInterval(() => {
-      index++;
-
-      if (index <= analysis.length) {
-        setDisplayedText(analysis.slice(0, index));
-      } else {
-        clearInterval(interval);
-        setIsTyping(false);
-      }
-    }, 15);
-
-    return () => clearInterval(interval);
-  }, [analysis]);
-
   if (!analysis) return null;
 
   // 🔹 razdvajanje glavnog teksta i zaključka
-  const [mainText, conclusionText] = displayedText.split(SPLIT_MARKER);
+  const [mainText, conclusionText] = analysis.split(SPLIT_MARKER);
 
   // 🔹 razbijanje glavnog teksta u paragrafe (3 rečenice po bloku)
   const paragraphs = mainText
@@ -59,9 +33,6 @@ const AnalysisCard = ({ analysis }: AnalysisCardProps) => {
         {paragraphs.map((para, idx) => (
           <p key={idx} className="whitespace-pre-wrap">
             {para}
-            {isTyping && idx === paragraphs.length - 1 && (
-              <span className="animate-pulse">▍</span>
-            )}
           </p>
         ))}
       </div>
@@ -75,8 +46,6 @@ const AnalysisCard = ({ analysis }: AnalysisCardProps) => {
             <h3 className="text-sm font-semibold text-slate-300 mb-1">
               Why this matters for Swiss cantons
             </h3>
-
-            
 
             <p className="whitespace-pre-wrap text-slate-200 text-sm">
               {capitalizeFirst(conclusionText.trim())}

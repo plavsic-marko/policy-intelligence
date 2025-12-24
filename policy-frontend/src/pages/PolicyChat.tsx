@@ -20,7 +20,6 @@ const PolicyChat = () => {
     resetSession,
   } = usePolicyStore();
 
- 
   useEffect(() => {
     if (!analysis) {
       resetSession();
@@ -39,6 +38,10 @@ const PolicyChat = () => {
     setInput("");
   };
 
+  const noKnowledge =
+    analysis?.trim() ===
+    "The information is not available in the current knowledge base.";
+
   return (
     <div className="max-w-[900px] mx-auto py-8 px-6 text-slate-100">
       <h1 className="text-3xl font-semibold mb-6">
@@ -54,18 +57,14 @@ const PolicyChat = () => {
 
       <ErrorBanner message={error} />
 
-      
-      {lastQuestion && !analysis && (
-        <>
-          <div className="mb-2 text-slate-400 text-sm">
-            <span className="text-slate-300 font-medium">Query:</span>{" "}
-            {lastQuestion}
-          </div>
-          <hr className="border-slate-700 mb-4" />
-        </>
+      {/* QUERY – UVEK ISPOD INPUTA, IZNAD ANALYZE */}
+      {lastQuestion && (
+        <div className="mb-4 text-sm text-slate-400">
+          <span className="text-slate-300 font-medium">Query:</span>{" "}
+          {lastQuestion}
+        </div>
       )}
 
-     
       {loading && !analysis && (
         <div className="bg-slate-800 border border-slate-700 p-6 rounded-xl mb-6">
           <div className="text-slate-400 text-sm animate-pulse">
@@ -74,10 +73,9 @@ const PolicyChat = () => {
         </div>
       )}
 
-      
       <AnalysisCard analysis={analysis} />
 
-      <SourceList sources={sources} />
+      {!noKnowledge && <SourceList sources={sources} />}
 
       <div ref={messagesEndRef} />
     </div>
