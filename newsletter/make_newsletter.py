@@ -1,41 +1,42 @@
-# make_newsletter.py
-import os
-import json
 import datetime as dt
-from typing import List, Dict, Any, Optional  # NEW
+import json
+import os
+import shutil
+from typing import Any, Dict, List, Optional
+
 import requests
 from dotenv import load_dotenv
-import shutil  # NEW
 
-load_dotenv()  # učitaj .env (OPENAI_API_KEY, po želji i druge)
+load_dotenv()
 
-# ============ KONFIG ============
-TOOL_URL = "http://localhost:8000/retrieve_digwatch"  # tvoj custom Tool endpoint
 
-# Q3 2025 (po potrebi promeni opseg ili query)
+TOOL_URL = "http://localhost:8000/retrieve_digwatch"
+
+
 PARAMS = {
-    "q": "*",        # npr. "AI Act" / "cybersecurity" za fokus
-    "k": 20,         # koliko vesti da povučemo
-    "alpha": 0.35,   # ako tvoj endpoint koristi hybrid parametar
-    # "quarter": "2025-Q3",  # uključi ako tvoj endpoint podržava ovaj filter
+    "q": "*",
+    "k": 20,
+    "alpha": 0.35,
 }
 
-# Newsletter meta
+
 QUARTER = "Q3"
 YEAR = "2025"
 NEWSLETTER_TITLE = f"Swiss Digital Policy Newsletter – {QUARTER} {YEAR}"
 
-# LLM model
-OPENAI_MODEL = "gpt-4o"  # po potrebi izmeni
-# ================================
 
-# ---------- OpenAI minimal klijent ----------
+OPENAI_MODEL = "gpt-4o"
+
+
 try:
     from openai import OpenAI
+
     _client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 except Exception:
     _client = None
-    print("[WARN] OpenAI client not initialized. Set OPENAI_API_KEY and install `openai` package.")
+    print(
+        "[WARN] OpenAI client not initialized. Set OPENAI_API_KEY and install `openai` package."
+    )
 
 
 def _safe_str(x: Any) -> str:
@@ -50,32 +51,21 @@ def _call_tool(params: Dict[str, Any]) -> Any:
 
 
 def fetch_updates() -> List[Dict[str, Any]]:
-    """
-    Zove tvoj custom Tool i vraća listu updejta normalizovanih polja:
-    - title, url, date, snippet
-    Pokušava da iskoristi `meta` i `source_urls` (ako postoje),
-    a u fallback-u izvuče iz `context`.
-    """
-    # Primarni pokušaj
+
     try:
         data = _call_tool(PARAMS)
     except requests.HTTPError as e:
-        # Ako API vrati 422 (npr. ne podržava neki parametar), pokušaj “fallback” bez svega što nije q/k/alpha/quarter
+
         if e.response is not None and e.response.status_code == 422:
-            fallback = {k: v for k, v in PARAMS.items() if k in (
-                "q", "k", "alpha", "quarter")}
+            fallback = {
+                k: v for k, v in PARAMS.items() if k in ("q", "k", "alpha", "quarter")
+            }
             data = _call_tool(fallback)
         else:
             raise
 
     items: List[Dict[str, Any]] = []
 
-    # Očekivani format:
-    # {
-    #   "context": [...],
-    #   "source_urls": [...],
-    #   "meta": [{ "title": ..., "effective_date": ..., "doc_url": ... }, ...]
-    # }
     if isinstance(data, dict):
         context = data.get("context")
         srcs = data.get("source_urls")
@@ -85,65 +75,66 @@ def fetch_updates() -> List[Dict[str, Any]]:
             n = max(len(meta), len(context or []), len(srcs or []))
             for i in range(n):
                 m = meta[i] if i < len(meta) else {}
-                snippet = (context[i] if (
-                    context and i < len(context)) else None)
-                url = m.get("doc_url") or (srcs[i] if (
-                    srcs and i < len(srcs)) else None)
+                snippet = context[i] if (context and i < len(context)) else None
+                url = m.get("doc_url") or (
+                    srcs[i] if (srcs and i < len(srcs)) else None
+                )
                 date = m.get("effective_date") or m.get("date")
 
-                items.append({
-                    "title": m.get("title"),
-                    "url": url,
-                    "date": date,
-                    "snippet": (snippet or "")[:1200]
-                })
+                items.append(
+                    {
+                        "title": m.get("title"),
+                        "url": url,
+                        "date": date,
+                        "snippet": (snippet or "")[:1200],
+                    }
+                )
             return items
 
-        # Ako nema meta/source_urls, ali ima "context"
         if "context" in data and isinstance(data["context"], list):
             for txt in data["context"]:
-                items.append({
-                    "title": None,
-                    "url": None,
-                    "date": None,
-                    "snippet": _safe_str(txt)[:1200]
-                })
+                items.append(
+                    {
+                        "title": None,
+                        "url": None,
+                        "date": None,
+                        "snippet": _safe_str(txt)[:1200],
+                    }
+                )
             return items
 
-    # Ako je lista objekata [{title,url,text,date,...}, ...]
     if isinstance(data, list):
         for it in data:
-            items.append({
-                "title": it.get("title") or it.get("heading"),
-                "url": it.get("url") or it.get("link"),
-                "date": it.get("date") or it.get("published_at"),
-                "snippet": (it.get("text") or it.get("snippet") or it.get("summary") or "")[:1200]
-            })
+            items.append(
+                {
+                    "title": it.get("title") or it.get("heading"),
+                    "url": it.get("url") or it.get("link"),
+                    "date": it.get("date") or it.get("published_at"),
+                    "snippet": (
+                        it.get("text") or it.get("snippet") or it.get("summary") or ""
+                    )[:1200],
+                }
+            )
         return items
 
-    # Fallback — upiši sve raw
-    items.append({
-        "title": None,
-        "url": None,
-        "date": None,
-        "snippet": json.dumps(data)[:1200]
-    })
+    items.append(
+        {"title": None, "url": None, "date": None, "snippet": json.dumps(data)[:1200]}
+    )
     return items
 
 
 def build_prompt(items: List[Dict[str, Any]]) -> Dict[str, str]:
-    """
-    Priprema system + user prompt: tražimo JSON newslettera (EU + Global)
-    sa briefovima u formatu: title, summary, relevance.
-    """
+
     compact_sources = []
     for it in items:
-        compact_sources.append({
-            "title": it.get("title"),
-            "url": it.get("url"),
-            "date": it.get("date"),
-            "snippet": it.get("snippet")[:800] if it.get("snippet") else None
-        })
+        compact_sources.append(
+            {
+                "title": it.get("title"),
+                "url": it.get("url"),
+                "date": it.get("date"),
+                "snippet": it.get("snippet")[:800] if it.get("snippet") else None,
+            }
+        )
 
     system_prompt = """
 You are an expert policy analyst for Swiss cantonal and local IT authorities.
@@ -187,11 +178,14 @@ Rules:
 - Do NOT include anything except valid JSON.
 """.strip()
 
-    user_prompt = json.dumps({
-        "newsletter_title": NEWSLETTER_TITLE,
-        "time_window_hint": f"{QUARTER} {YEAR}",
-        "sources": compact_sources
-    }, ensure_ascii=False)
+    user_prompt = json.dumps(
+        {
+            "newsletter_title": NEWSLETTER_TITLE,
+            "time_window_hint": f"{QUARTER} {YEAR}",
+            "sources": compact_sources,
+        },
+        ensure_ascii=False,
+    )
 
     return {"system": system_prompt, "user": user_prompt}
 
@@ -209,10 +203,10 @@ def call_openai_json(system: str, user: str) -> Dict[str, Any]:
         model=OPENAI_MODEL,
         messages=[
             {"role": "system", "content": system},
-            {"role": "user", "content": user}
+            {"role": "user", "content": user},
         ],
         temperature=0.2,
-        response_format={"type": "json_object"}
+        response_format={"type": "json_object"},
     )
     content = resp.choices[0].message.content
     return json.loads(content)
@@ -232,14 +226,15 @@ def render_markdown(news_json: Dict[str, Any]) -> str:
     sections = news_json.get("sections", []) or []
     for section in sections:
         md.append(
-            f"## Key Developments – {_safe_str(section.get('section_name', 'Section'))}")
+            f"## Key Developments – {_safe_str(section.get('section_name', 'Section'))}"
+        )
         md.append("")
         for brief in section.get("briefs", []) or []:
             md.append(f"### {_safe_str(brief.get('title', 'Untitled'))}")
             md.append("**Summary:**  ")
             md.append(_safe_str(brief.get("summary", "")).strip() + "\n")
             md.append("**Relevance for Swiss public administration:**  ")
-            # NOTE: keep as-is if already correct
+
             md.append(_safe_str(brief.get("relevance", "")).strip() + "\n")
             md.append("---\n")
 
@@ -248,23 +243,21 @@ def render_markdown(news_json: Dict[str, Any]) -> str:
     md.append("")
     return "\n".join(md)
 
-# NEW: PDF render iz Markdowna pomoću pypandoc (bezbedan fallback)
-
 
 def render_pdf_from_markdown(md_path: str) -> Optional[str]:
-    """
-    Pokušaj da konvertuje Markdown u PDF pomoću pypandoc.
-    Vraća putanju do PDF fajla ili None ako nije moguće (pypandoc/pandoc nisu instalirani).
-    """
+
     try:
         import pypandoc  # type: ignore
     except Exception:
         print(
-            "[INFO] pypandoc nije instaliran. Preskačem PDF export. (pip install pypandoc)")
+            "[INFO] pypandoc nije instaliran. Preskačem PDF export. (pip install pypandoc)"
+        )
         return None
 
     if shutil.which("pandoc") is None:
-        print("[INFO] `pandoc` nije pronađen u PATH-u. Preskačem PDF export. (install: https://pandoc.org/install.html)")
+        print(
+            "[INFO] `pandoc` nije pronađen u PATH-u. Preskačem PDF export. (install: https://pandoc.org/install.html)"
+        )
         return None
 
     pdf_path = os.path.splitext(md_path)[0] + ".pdf"
@@ -285,7 +278,6 @@ def save_outputs(news_json: Dict[str, Any]) -> Dict[str, str]:
     with open(md_path, "w", encoding="utf-8") as f:
         f.write(render_markdown(news_json))
 
-    # NEW: automatski PDF iz MD (ako moguće)
     pdf_path = render_pdf_from_markdown(md_path)
     out = {"json": json_path, "md": md_path}
     if pdf_path:
@@ -313,7 +305,9 @@ def main():
     if "pdf" in paths:
         print(f"  PDF:  {paths['pdf']}")
     else:
-        print("Tip: PDF export preskočen (instaliraj `pandoc` i `pypandoc` ili koristi 'Print to PDF').")
+        print(
+            "Tip: PDF export preskočen (instaliraj `pandoc` i `pypandoc` ili koristi 'Print to PDF')."
+        )
 
 
 if __name__ == "__main__":
