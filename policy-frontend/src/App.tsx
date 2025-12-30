@@ -1,6 +1,7 @@
 import { Route, BrowserRouter as Router, Routes } from "react-router-dom";
 import Layout from "./components/Layout";
 import History from "./pages/History";
+import Newsletters from "./pages/Newsletters";
 import PolicyChat from "./pages/PolicyChat";
 
 
@@ -11,6 +12,8 @@ function App() {
         <Routes>
           <Route path="/" element={<PolicyChat />} />
           <Route path="/history" element={<History />} />
+          <Route path="/newsletters" element={<Newsletters />} />
+
         </Routes>
       </Layout>
     </Router>

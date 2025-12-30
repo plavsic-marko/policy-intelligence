@@ -34,6 +34,22 @@ const Sidebar = () => {
         <span>History</span>
       </NavLink>
 
+      <NavLink
+        to="/newsletters"
+        className={({ isActive }) =>
+          `px-4 py-2 rounded-md text-sm font-medium transition ${
+            isActive
+              ? "bg-slate-800 text-white"
+              : "text-slate-300 hover:bg-slate-800/60"
+    }`
+  }
+>
+  <span>Newsletters</span>
+</NavLink>
+
+
+      
+
     </div>
   );
 };
